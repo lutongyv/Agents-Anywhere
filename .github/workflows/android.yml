@@ -1,0 +1,73 @@
+name: Android
+
+# Builds the debug APK only; no signing secrets are required.
+# Download the artifact from the workflow run page.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: "Client server URL (leave empty for the official server)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Run unit tests and build debug APK
+        env:
+          SERVER_URL: ${{ github.event.inputs.server_url }}
+        run: |
+          args=""
+          if [ -n "$SERVER_URL" ]; then
+            args="-PagentsAnywhere.serverUrl=$SERVER_URL"
+          fi
+          ./gradlew --no-daemon -Pandroid.suppressUnsupportedCompileSdk=36 testDebugUnitTest assembleDebug $args
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: agents-anywhere-debug-${{ github.run_number }}
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
