@@ -10,10 +10,12 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from redis.exceptions import RedisError
+from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES
 
 from agent_server.api import (
     admin,
@@ -207,6 +209,21 @@ def create_app(
         ),
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+    # Snapshot and timeline payloads are JSON and can reach multiple MB.
+    # Compress them on the wire; large bodies go through Starlette's worker
+    # thread limiter, so the event loop stays free. SSE and already-compressed
+    # content types are excluded by default.
+    app.add_middleware(
+        GZipMiddleware,
+        minimum_size=1024,
+        compresslevel=5,
+        # Relay downloads are binary and already large; do not spend CPU
+        # re-compressing them.
+        exclude_content_types=(
+            *DEFAULT_EXCLUDED_CONTENT_TYPES,
+            "application/octet-stream",
+        ),
     )
     if migrate_database:
         upgrade_database()

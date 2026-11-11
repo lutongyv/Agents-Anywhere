@@ -133,8 +133,13 @@ function remoteStateFromOptimisticState(optimisticState: SessionLocalTimelineSta
   }
 }
 
-const INITIAL_TIMELINE_LIMIT = 100
-const TIMELINE_PAGE_LIMIT = 100
+// Hydrate only the tail of a long session; older pages load on scroll.
+// Keep history pages small too: a 100-item page can reach ~8 MB when tool
+// results embed inline base64 images.
+const INITIAL_TIMELINE_LIMIT = 30
+const TIMELINE_PAGE_LIMIT = 30
+// Keep more than the initial page once the user scrolls back through history.
+const MAX_TIMELINE_ITEMS = 100
 const LOAD_OLDER_SCROLL_THRESHOLD = 96
 const SCROLL_TO_BOTTOM_PRUNE_DISTANCE = 180
 const INITIAL_SCROLL_LAYOUT_QUIET_MS = 120
@@ -1474,12 +1479,12 @@ export function SessionDetail({
   const scrollToBottom = React.useCallback(() => {
     pruneAfterScrollCleanupRef.current?.()
     const viewport = timelineRef.current
-    const shouldPrune = (state?.items.length ?? 0) > INITIAL_TIMELINE_LIMIT
+    const shouldPrune = (state?.items.length ?? 0) > MAX_TIMELINE_ITEMS
     if (!viewport) {
       if (shouldPrune) {
         setState((current) =>
-          current && current.items.length > INITIAL_TIMELINE_LIMIT
-            ? { ...current, items: current.items.slice(-INITIAL_TIMELINE_LIMIT) }
+          current && current.items.length > MAX_TIMELINE_ITEMS
+            ? { ...current, items: current.items.slice(-MAX_TIMELINE_ITEMS) }
             : current,
         )
       }
@@ -1495,8 +1500,8 @@ export function SessionDetail({
     const pruneIfAtBottom = () => {
       if (!timelineFollowRef.current?.isFollowing() || distanceFromBottom() > SCROLL_TO_BOTTOM_PRUNE_DISTANCE) return false
       setState((current) =>
-        current && current.items.length > INITIAL_TIMELINE_LIMIT
-          ? { ...current, items: current.items.slice(-INITIAL_TIMELINE_LIMIT) }
+        current && current.items.length > MAX_TIMELINE_ITEMS
+          ? { ...current, items: current.items.slice(-MAX_TIMELINE_ITEMS) }
           : current,
       )
       return true

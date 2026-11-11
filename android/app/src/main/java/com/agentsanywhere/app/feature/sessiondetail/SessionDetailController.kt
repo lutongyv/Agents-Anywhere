@@ -20,8 +20,10 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 import org.json.JSONObject
 
-private const val INITIAL_TIMELINE_LIMIT = 100
-private const val TIMELINE_PAGE_LIMIT = 100
+private const val INITIAL_TIMELINE_LIMIT = 30
+
+// Keep history pages small: tool results can embed multi-megabyte base64 images.
+private const val TIMELINE_PAGE_LIMIT = 30
 
 class SessionDetailController(
     private val sessionsApi: SessionsApi,

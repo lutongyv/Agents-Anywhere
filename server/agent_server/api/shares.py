@@ -13,6 +13,7 @@ from agent_server.core.models import (
     SessionShareCreateResponse,
     TimelineItem,
 )
+from agent_server.core.timeline_payload import strip_inline_image_data
 from agent_server.core.utc import utc_now
 from agent_server.deps import (
     current_user_id,
@@ -114,7 +115,10 @@ async def public_session_share(
     snapshot = share["snapshot"]
     try:
         session = PublicSharedSession.model_validate(snapshot["session"])
-        items = [TimelineItem.model_validate(item) for item in snapshot["items"]]
+        items = [
+            TimelineItem.model_validate(item) for item in snapshot["items"]
+        ]
+        items = strip_inline_image_data(items)
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=500, detail="invalid share snapshot") from exc
     return PublicSessionShareResponse(

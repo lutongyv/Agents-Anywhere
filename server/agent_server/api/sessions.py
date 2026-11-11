@@ -74,6 +74,7 @@ from agent_server.core.runtime_identity import (
     SessionRuntimeBindingError,
     resolve_session_runtime_binding,
 )
+from agent_server.core.timeline_payload import strip_inline_image_data
 from agent_server.core.utc import utc_now
 from agent_server.deps import (
     current_user_id,
@@ -867,6 +868,7 @@ async def session_timeline(
             next_seq = await db.get_session_seq(session_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="session not found") from None
+    items = strip_inline_image_data(items)
     return ProtocolTimelineResponse(
         sessionId=session_id,
         items=items,
@@ -978,6 +980,7 @@ async def session_snapshot(
         log_snapshot_stage("database", stage_started_at)
     except KeyError:
         raise HTTPException(status_code=404, detail="session not found") from None
+    items = strip_inline_image_data(items)
     # Refresh the live runtime state after the response so a slow runtime read
     # never delays first paint. A real change is pushed to the session stream.
     background_tasks.add_task(

@@ -5,15 +5,17 @@ struct V2SessionDetailService {
     let runtimeAPI: any V2RuntimeAPIProtocol
     let realtimeAPI: any V2RealtimeAPIProtocol
 
-    func load(sessionId: V2SessionID, itemLimit: Int = 100) async throws -> V2SessionSnapshot {
+    /// Initial hydration stays small; older pages are fetched on demand.
+    func load(sessionId: V2SessionID, itemLimit: Int = 30) async throws -> V2SessionSnapshot {
         try validatePageSize(itemLimit)
         return try await sessionAPI.snapshot(sessionId: sessionId, limit: itemLimit)
     }
 
+    /// Keep history pages small: tool results can embed multi-megabyte images.
     func loadOlderItems(
         sessionId: V2SessionID,
         beforeOrderSeq: Int,
-        limit: Int = 100
+        limit: Int = 30
     ) async throws -> V2SessionTimelinePage {
         try validatePageSize(limit)
         return try await sessionAPI.timelineHistory(
